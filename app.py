@@ -1,33 +1,36 @@
 ########### All Requirements Imported
-import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.express as px
-import plotly.graph_objs as go
 import openai
-from pathlib import Path
-import os
-import datetime
+import streamlit as st
 import sqlite3
-
+import pandas as pd
 from Curr_User_Fun import Current_User as CU
 from GetTableSchema import get_table_schema as gts
+
+ 
 
 ########### App Title with User Name
 st.title("Database Communication App")
 curr_user=st.experimental_user['email']
 st.write(CU(curr_user))
 
+ 
+
 ########### Ask api key
 openai_api_key = st.sidebar.text_input('OpenAI API Key', type='password')
 openai.api_key = openai_api_key
+
+ 
 
 ######## SQL Connection
 conn = sqlite3.connect('chinook.db')
 def sq(str,con=conn):
 	return pd.read_sql('''{}'''.format(str), con)
 
+ 
+
 ######### Table lists for reference
+
+ 
 
 tables_List = sq(
     '''select distinct name
@@ -35,84 +38,83 @@ tables_List = sq(
     where type='table';'''
     ,conn)
 
+ 
+
 st.sidebar.table(tables_List)
 
+ 
+
+ 
 
 ########### Frame Prompt
 
+ 
+
 dialect="SQL"
 
-few_shot_examples = """
-<<Template>>
-Question: User Question
-Thought 1: Your thought here.
-Action: 
-```python
-#Import neccessary libraries here
-import numpy as np
-#Query some data 
-sql_query = "SOME SQL QUERY"
-step1_df = execute_sql(sql_query)
-# Replace 0 with NaN. Always have this step
-step1_df['Some_Column'] = step1_df['Some_Column'].replace(0, np.nan)
-#observe query result
-observe("some_label", step1_df) #Always use observe() instead of print
-```
-Observation: 
-step1_df is displayed here
-Thought 2: Your thought here
-Action:  
-```python
-import plotly.express as px 
-#from step1_df, perform some data analysis action to produce step2_df
-#To see the data for yourself the only way is to use observe()
-observe("some_label", step2_df) #Always use observe() 
-#Decide to show it to user.
-fig=px.line(step2_df)
-#visualize fig object to user.  
-show(fig)
-#you can also directly display tabular or text data to end user.
-show(step2_df)
-```
-Observation: 
-step2_df is displayed here
-Answer: Your final answer and comment for the question
-<</Template>>
+ 
 
-"""
+few_shot_examples="""Select col1,col2
+from tabl t1 join tabl2 t2 on t1.col1=t2.col2
+Where t1.col
+Group By t1.Col1
+Order By t2.Col1;"""
+
+ 
 
 TableSchema = gts()
+
+ 
 
 Prompt = f"""Given an input question, first create a syntactically correct {dialect} query to run, 
 always show distinct data,
 default show limited 10 rows until user ask for all rows.
 
+ 
+
 SQLQuery: "SQL Query to run"
+
+ 
 
 Only use the following tables:
 
+ 
+
 {TableSchema}.
+
+ 
 
 Some examples of SQL queries that corrsespond to questions are:
 
+ 
+
 {few_shot_examples}
+
+ 
 
 """
 
+ 
+
+ 
 
 # Set a default model
 if "openai_model" not in st.session_state:
 	st.session_state["openai_model"] = "gpt-3.5-turbo"
 
+ 
+
 # Initialize chat history
 if "messages" not in st.session_state:
 	st.session_state.messages = []
+
+ 
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
 	with st.chat_message(message["role"]):
 		st.markdown(message["content"])
-		
+
 # Accept user input
 if UserInput := st.chat_input("Create a Snowflake query for top 5 customers by maximum total invoice"):
 	# Add user message to chat history
@@ -120,7 +122,7 @@ if UserInput := st.chat_input("Create a Snowflake query for top 5 customers by m
 	# Display user message in chat message container
 	with st.chat_message("user"):
 		st.markdown(UserInput)
-		
+
 	# Display assistant response in chat message container
 	with st.chat_message("assistant"):
 		#message_placeholder = st.empty()
@@ -135,7 +137,7 @@ if UserInput := st.chat_input("Create a Snowflake query for top 5 customers by m
 			full_response += response.choices[0].delta.get("content", "")
 			#message_placeholder.markdown(full_response + "▌")
 		#message_placeholder.markdown(full_response)
-		
+
 		# Execute SQL in Database.
 		OutPut_raw=full_response
 		RawSQL=f"{OutPut_raw}"
@@ -146,8 +148,3 @@ if UserInput := st.chat_input("Create a Snowflake query for top 5 customers by m
 	st.table(Database_Output)
 	#st.session_state.messages.append({"role": "assistant", "content": full_response})
 	#st.session_state.messages.append({"role": "assistant", "content": Database_Output})
-
-	
-	
-
-	
